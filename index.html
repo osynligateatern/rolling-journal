@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rolling Journal">
+    <meta name="theme-color" content="#c44536">
+    <meta name="description" content="Din BJJ-utveckling, systematiskt dokumenterad">
+    <title>Rolling Journal v2.0</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23c44536' width='100' height='100'/><text y='75' x='50' text-anchor='middle' font-size='60' fill='%23faf8f5'>🥋</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23c44536' width='100' height='100'/><text y='75' x='50' text-anchor='middle' font-size='60' fill='%23faf8f5'>🥋</text></svg>">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Chart.js for weight visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    
+    <style>
+        :root {
+            --ink: #1a1a1a;
+            --paper: #faf8f5;
+            --accent: #c44536;
+            --subtle: #8b8680;
+            --line: #e5e1da;
+            --shadow: rgba(0,0,0,0.08);
+            --success: #2d7a3e;
+            --warning: #d97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: var(--paper);
+            color: var(--ink);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .mono {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Auth Screen */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .auth-box {
+            background: white;
+            border: 2px solid var(--ink);
+            padding: 3rem 2rem;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .auth-box h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-box .subtitle {
+            color: var(--subtle);
+            margin-bottom: 2rem;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .auth-tab {
+            background: none;
+            border: none;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--subtle);
+            cursor: pointer;
+            padding: 0.75rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .auth-tab.active {
+            color: var(--ink);
+            border-bottom-color: var(--accent);
+        }
+
+        header {
+            border-bottom: 2px solid var(--ink);
+            padding-bottom: 1.5rem;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--subtle);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        .user-info {
+            text-align: right;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .user-email {
+            color: var(--subtle);
+            margin-bottom: 0.5rem;
+        }
+
+        .logout-btn {
+            background: none;
+            border: 1px solid var(--line);
+            color: var(--subtle);
+            padding: 0.4rem 0.8rem;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .nav {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--line);
+            padding-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--subtle);
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-btn.active {
+            color: var(--paper);
+            background: var(--accent);
+        }
+
+        .nav-btn:hover {
+            color: var(--ink);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+        }
+
+        label {
+            display: block;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+            color: var(--subtle);
+        }
+
+        label .optional {
+            color: var(--line);
+            text-transform: lowercase;
+            font-size: 0.75rem;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--line);
+            background: white;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            color: var(--ink);
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(196, 69, 54, 0.1);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .voice-input-wrapper {
+            position: relative;
+        }
+
+        .voice-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 0.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .voice-btn:hover {
+            background: #a33828;
+            transform: scale(1.05);
+        }
+
+        .voice-btn.recording {
+            background: #ff4444;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .btn {
+            background: var(--ink);
+            color: var(--paper);
+            border: none;
+            padding: 1rem 2rem;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .btn:disabled {
+            background: var(--subtle);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--ink);
+            border: 1px solid var(--line);
+        }
+
+        .btn-secondary:hover {
+            background: var(--paper);
+            border-color: var(--accent);
+        }
+
+        .weight-input-group {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+        }
+
+        .weight-input-group input {
+            flex: 1;
+        }
+
+        .weight-unit {
+            font-family: 'DM Mono', monospace;
+            color: var(--subtle);
+            padding-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .weight-status {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2px;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .weight-status.good {
+            background: rgba(45, 122, 62, 0.1);
+            color: var(--success);
+        }
+
+        .weight-status.warning {
+            background: rgba(217, 119, 6, 0.1);
+            color: var(--warning);
+        }
+
+        .weight-status.danger {
+            background: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+        }
+
+        .entry-card {
+            border: 1px solid var(--line);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .entry-card:hover {
+            box-shadow: 0 4px 20px var(--shadow);
+            transform: translateY(-2px);
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .entry-date {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .entry-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .entry-type {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--subtle);
+            letter-spacing: 0.05em;
+        }
+
+        .entry-weight {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        .entry-content h4 {
+            font-size: 0.85rem;
+            font-family: 'DM Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--subtle);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .entry-content p {
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--line);
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--subtle);
+        }
+
+        .chart-container {
+            background: white;
+            border: 1px solid var(--line);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            font-family: 'DM Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pattern-list {
+            background: white;
+            border: 1px solid var(--line);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .pattern-list h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .pattern-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .pattern-item:last-child {
+            border-bottom: none;
+        }
+
+        .pattern-name {
+            font-weight: 500;
+        }
+
+        .pattern-count {
+            font-family: 'DM Mono', monospace;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--subtle);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--ink);
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: 1px solid var(--line);
+            color: var(--subtle);
+            padding: 0.5rem 1rem;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .delete-btn:hover {
+            background: #ff4444;
+            color: white;
+            border-color: #ff4444;
+        }
+
+        .agame-section {
+            background: white;
+            border: 2px solid var(--accent);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .agame-section h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+        }
+
+        .agame-position {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .agame-position:last-child {
+            border-bottom: none;
+        }
+
+        .agame-position h4 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .agame-position ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .agame-position li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .agame-position li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .error-message {
+            background: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+            padding: 1rem;
+            border-left: 3px solid #dc2626;
+            margin-bottom: 1rem;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .success-message {
+            background: rgba(45, 122, 62, 0.1);
+            color: var(--success);
+            padding: 1rem;
+            border-left: 3px solid var(--success);
+            margin-bottom: 1rem;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--subtle);
+        }
+
+        .spinner {
+            border: 3px solid var(--line);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav {
+                gap: 0.5rem;
+            }
+
+            .nav-btn {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-container">
+        <div class="auth-box">
+            <h1>Rolling Journal</h1>
+            <p class="subtitle">Din BJJ-utveckling i molnet 🥋</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Logga in</button>
+                <button class="auth-tab" onclick="switchAuthTab('signup')">Registrera</button>
+            </div>
+
+            <div id="authError" class="error-message hidden"></div>
+            <div id="authSuccess" class="success-message hidden"></div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Lösenord</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn">Logga in</button>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signupForm" class="auth-form hidden">
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Lösenord (min 6 tecken)</label>
+                    <input type="password" id="signupPassword" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="signupName">Namn <span class="optional">(valfritt)</span></label>
+                    <input type="text" id="signupName">
+                </div>
+                <button type="submit" class="btn">Registrera</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="container hidden">
+        <header>
+            <div class="header-top">
+                <div>
+                    <h1>Rolling Journal</h1>
+                    <p class="subtitle">Din BJJ-utveckling, systematiskt dokumenterad</p>
+                </div>
+                <div class="user-info">
+                    <div class="user-email" id="userEmail"></div>
+                    <button class="logout-btn" onclick="handleLogout()">Logga ut</button>
+                </div>
+            </div>
+            
+            <div class="nav">
+                <button class="nav-btn active" onclick="showSection('log')">Ny Logg</button>
+                <button class="nav-btn" onclick="showSection('entries')">Alla Pass</button>
+                <button class="nav-btn" onclick="showSection('weight')">Vikt</button>
+                <button class="nav-btn" onclick="showSection('analysis')">Analys</button>
+                <button class="nav-btn" onclick="showSection('agame')">A-Spel</button>
+                <button class="nav-btn" onclick="showSection('migrate')">Migrera</button>
+            </div>
+        </header>
+
+        <!-- LOG ENTRY SECTION -->
+        <section id="log" class="section active">
+            <div id="logMessage" class="success-message hidden"></div>
+            <form id="logForm">
+                <div class="form-group">
+                    <label for="date">Datum</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="coach">Coach <span class="optional">valfritt</span></label>
+                        <select id="coach">
+                            <option value="">Välj coach</option>
+                            <option value="Josh">Josh</option>
+                            <option value="Hermes">Hermes</option>
+                            <option value="Henry">Henry</option>
+                            <option value="Marffy">Marffy</option>
+                            <option value="annan">Annan (skriv i anteckningar)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="weight">Vikt (kg) <span class="optional">valfritt</span></label>
+                        <div class="weight-input-group">
+                            <input type="number" id="weight" step="0.1" min="50" max="150" placeholder="79.5">
+                            <span class="weight-unit">kg</span>
+                        </div>
+                        <div id="weightStatus"></div>
+                    </div>
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="technique">Teknik som tränades</label>
+                    <textarea id="technique" placeholder="Vilka positioner/övergångar/submissions jobbade ni med?"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('technique')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="rolls">Antal rullar / partners</label>
+                    <input type="text" id="rolls" placeholder="t.ex. 5 rullar, 3 olika partners">
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="positions">Positioner jag hamnade i mest</label>
+                    <textarea id="positions" placeholder="Vilka positioner återkom?"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('positions')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="worked">Vad fungerade</label>
+                    <textarea id="worked" placeholder="Tekniker, övergångar eller strategier som lyckades"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('worked')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="stuck">Vad fastnade/gick sönder</label>
+                    <textarea id="stuck" placeholder="Vad funkade inte? Var förlorade du position?"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('stuck')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="good">✅ En sak som kändes bra</label>
+                    <textarea id="good" placeholder="En positiv observation"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('good')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <div class="form-group voice-input-wrapper">
+                    <label for="improve">🎯 En sak att jobba på nästa pass</label>
+                    <textarea id="improve" placeholder="Konkret sak att fokusera på"></textarea>
+                    <button type="button" class="voice-btn" onclick="startVoice('improve')" title="Röstinspelning">🎤</button>
+                </div>
+
+                <button type="submit" class="btn" id="saveBtn">Spara Pass</button>
+            </form>
+        </section>
+
+        <!-- ALL ENTRIES SECTION -->
+        <section id="entries" class="section">
+            <div id="entriesList"></div>
+        </section>
+
+        <!-- WEIGHT TRACKING SECTION -->
+        <section id="weight" class="section">
+            <div class="chart-container">
+                <h3>Viktutveckling</h3>
+                <canvas id="weightChart"></canvas>
+            </div>
+            <div id="weightStats" class="stats-grid"></div>
+        </section>
+
+        <!-- ANALYSIS SECTION -->
+        <section id="analysis" class="section">
+            <div class="stats-grid" id="statsGrid"></div>
+            <div id="patternsContainer"></div>
+        </section>
+
+        <!-- A-GAME SECTION -->
+        <section id="agame" class="section">
+            <div id="agameContent"></div>
+        </section>
+
+        <!-- MIGRATION SECTION -->
+        <section id="migrate" class="section">
+            <div class="pattern-list">
+                <h3>Migrera från v1.0</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--subtle);">
+                    Om du har loggar i den gamla versionen (localStorage), kan du importera dem hit.
+                </p>
+                
+                <div class="form-group">
+                    <label>Steg 1: Exportera från gammal app</label>
+                    <p style="margin-bottom: 1rem; font-size: 0.9rem;">
+                        Öppna den gamla appen, öppna Console (F12 → Console), kör:<br>
+                        <code style="background: var(--paper); padding: 0.5rem; display: block; margin-top: 0.5rem; font-family: monospace;">
+                            copy(localStorage.getItem('bjjEntries'))
+                        </code>
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label for="importData">Steg 2: Klistra in data här</label>
+                    <textarea id="importData" rows="5" placeholder='[{"id":123,"date":"2025-02-07",...}]'></textarea>
+                </div>
+
+                <button onclick="importOldData()" class="btn">Importera Data</button>
+                
+                <div id="importMessage" class="success-message hidden" style="margin-top: 1rem;"></div>
+            </div>
+
+            <div class="pattern-list" style="margin-top: 2rem;">
+                <h3>Exportera/Backup</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--subtle);">
+                    Spara en backup av all din data som JSON-fil.
+                </p>
+                <button onclick="exportData()" class="btn btn-secondary">Exportera all data</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // SUPABASE CONFIG - REPLACE WITH YOUR OWN
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        
+        // Initialize Supabase (will show config instructions if not set)
+        let supabase;
+        try {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                console.warn('Supabase not configured. See console for instructions.');
+                document.body.innerHTML = `
+                    <div style="max-width: 800px; margin: 4rem auto; padding: 2rem; font-family: monospace;">
+                        <h1>Supabase Configuration Required</h1>
+                        <p>To use Rolling Journal v2.0, you need to set up Supabase:</p>
+                        <ol style="line-height: 2;">
+                            <li>Go to <a href="https://supabase.com" target="_blank">supabase.com</a></li>
+                            <li>Create a free account</li>
+                            <li>Create a new project</li>
+                            <li>Go to Settings → API</li>
+                            <li>Copy "Project URL" and "anon public" key</li>
+                            <li>Go to SQL Editor and run the schema from supabase-schema.sql</li>
+                            <li>Replace SUPABASE_URL and SUPABASE_ANON_KEY in this file</li>
+                        </ol>
+                        <p>See full instructions in DEPLOYMENT.md</p>
+                    </div>
+                `;
+            } else {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.error('Supabase initialization error:', e);
+        }
+
+        // Global state
+        let currentUser = null;
+        let currentRecording = null;
+        let recognition = null;
+        let weightChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            initVoiceRecognition();
+            await checkAuth();
+            setupEventListeners();
+            document.getElementById('date').valueAsDate = new Date();
+        });
+
+        // Voice Recognition Setup
+        function initVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'sv-SE';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+
+                recognition.onresult = (event) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript + ' ';
+                        }
+                    }
+                    if (currentRecording && finalTranscript) {
+                        const field = document.getElementById(currentRecording);
+                        field.value = (field.value + ' ' + finalTranscript).trim();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    stopVoice();
+                };
+
+                recognition.onend = () => {
+                    if (currentRecording) {
+                        const btn = document.querySelector(`button[onclick="startVoice('${currentRecording}')"]`);
+                        if (btn) btn.classList.remove('recording');
+                        currentRecording = null;
+                    }
+                };
+            }
+        }
+
+        function startVoice(fieldId) {
+            if (!recognition) {
+                alert('Röstinspelning stöds inte i din webbläsare. Prova Chrome eller Edge.');
+                return;
+            }
+            if (currentRecording === fieldId) {
+                stopVoice();
+                return;
+            }
+            if (currentRecording) {
+                stopVoice();
+            }
+            currentRecording = fieldId;
+            const btn = document.querySelector(`button[onclick="startVoice('${fieldId}')"]`);
+            btn.classList.add('recording');
+            recognition.start();
+        }
+
+        function stopVoice() {
+            if (recognition && currentRecording) {
+                recognition.stop();
+                const btn = document.querySelector(`button[onclick="startVoice('${currentRecording}')"]`);
+                if (btn) btn.classList.remove('recording');
+                currentRecording = null;
+            }
+        }
+
+        // Auth Functions
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                showMainApp();
+            } else {
+                showAuthScreen();
+            }
+        }
+
+        function showAuthScreen() {
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('userEmail').textContent = currentUser.email;
+        }
+
+        function switchAuthTab(tab) {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const forms = document.querySelectorAll('.auth-form');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            forms.forEach(f => f.classList.add('hidden'));
+            
+            if (tab === 'login') {
+                tabs[0].classList.add('active');
+                document.getElementById('loginForm').classList.remove('hidden');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('signupForm').classList.remove('hidden');
+            }
+            
+            hideAuthMessages();
+        }
+
+        function setupEventListeners() {
+            // Login
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    showAuthError(error.message);
+                } else {
+                    currentUser = data.user;
+                    showMainApp();
+                }
+            });
+
+            // Signup
+            document.getElementById('signupForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('signupEmail').value;
+                const password = document.getElementById('signupPassword').value;
+                const name = document.getElementById('signupName').value;
+                
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { full_name: name }
+                    }
+                });
+                
+                if (error) {
+                    showAuthError(error.message);
+                } else {
+                    showAuthSuccess('Registrering lyckades! Kontrollera din email för verifiering, sedan kan du logga in.');
+                }
+            });
+
+            // Log form
+            document.getElementById('logForm').addEventListener('submit', handleLogSubmit);
+
+            // Weight input monitoring
+            document.getElementById('weight').addEventListener('input', updateWeightStatus);
+        }
+
+        function showAuthError(message) {
+            const errorDiv = document.getElementById('authError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+        }
+
+        function showAuthSuccess(message) {
+            const successDiv = document.getElementById('authSuccess');
+            successDiv.textContent = message;
+            successDiv.classList.remove('hidden');
+            setTimeout(() => successDiv.classList.add('hidden'), 5000);
+        }
+
+        function hideAuthMessages() {
+            document.getElementById('authError').classList.add('hidden');
+            document.getElementById('authSuccess').classList.add('hidden');
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            showAuthScreen();
+        }
+
+        // Weight Status
+        function updateWeightStatus() {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const statusDiv = document.getElementById('weightStatus');
+            
+            if (!weight) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+
+            const TARGET = 82.3;
+            const diff = TARGET - weight;
+            
+            let statusClass = 'good';
+            let statusText = `${diff.toFixed(1)} kg marginal`;
+            
+            if (weight > TARGET) {
+                statusClass = 'danger';
+                statusText = `${Math.abs(diff).toFixed(1)} kg över gräns!`;
+            } else if (weight > TARGET - 1) {
+                statusClass = 'warning';
+                statusText = `${diff.toFixed(1)} kg marginal (nära gränsen)`;
+            }
+            
+            statusDiv.innerHTML = `<span class="weight-status ${statusClass}">${statusText}</span>`;
+        }
+
+        // Log Submission
+        async function handleLogSubmit(e) {
+            e.preventDefault();
+            
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Sparar...';
+            
+            const entry = {
+                user_id: currentUser.id,
+                date: document.getElementById('date').value,
+                session_type: document.getElementById('coach').value || null,
+                weight_kg: document.getElementById('weight').value || null,
+                technique: document.getElementById('technique').value,
+                rolls_count: document.getElementById('rolls').value,
+                positions: document.getElementById('positions').value,
+                what_worked: document.getElementById('worked').value,
+                what_stuck: document.getElementById('stuck').value,
+                reflection_good: document.getElementById('good').value,
+                reflection_improve: document.getElementById('improve').value
+            };
+
+            const { error } = await supabase
+                .from('training_sessions')
+                .insert([entry]);
+
+            if (error) {
+                alert('Fel vid sparande: ' + error.message);
+            } else {
+                showLogSuccess('Pass sparat! 🥋');
+                document.getElementById('logForm').reset();
+                document.getElementById('date').valueAsDate = new Date();
+                document.getElementById('weightStatus').innerHTML = '';
+            }
+            
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Spara Pass';
+        }
+
+        function showLogSuccess(message) {
+            const msgDiv = document.getElementById('logMessage');
+            msgDiv.textContent = message;
+            msgDiv.classList.remove('hidden');
+            setTimeout(() => msgDiv.classList.add('hidden'), 3000);
+        }
+
+        // Navigation
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+
+            if (sectionId === 'entries') loadEntries();
+            if (sectionId === 'weight') loadWeightTracking();
+            if (sectionId === 'analysis') loadAnalysis();
+            if (sectionId === 'agame') loadAGame();
+        }
+
+        // Load Entries
+        async function loadEntries() {
+            const container = document.getElementById('entriesList');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laddar pass...</p></div>';
+            
+            const { data: entries, error } = await supabase
+                .from('training_sessions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+
+            if (error) {
+                container.innerHTML = `<div class="empty-state"><h3>Fel vid laddning</h3><p>${error.message}</p></div>`;
+                return;
+            }
+
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Inga pass loggade ännu</h3>
+                        <p>Börja logga dina träningspass för att se dem här.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = entries.map(entry => `
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <div class="entry-date">${formatDate(entry.date)}</div>
+                        <div class="entry-meta">
+                            ${entry.session_type ? `<div class="entry-type">Coach: ${entry.session_type}</div>` : ''}
+                            ${entry.weight_kg ? `<div class="entry-weight">${entry.weight_kg} kg</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="entry-content">
+                        ${entry.technique ? `<h4>Teknik</h4><p>${entry.technique}</p>` : ''}
+                        ${entry.rolls_count ? `<h4>Rullar</h4><p>${entry.rolls_count}</p>` : ''}
+                        ${entry.positions ? `<h4>Positioner</h4><p>${entry.positions}</p>` : ''}
+                        ${entry.what_worked ? `<h4>Fungerade</h4><p>${entry.what_worked}</p>` : ''}
+                        ${entry.what_stuck ? `<h4>Fastnade</h4><p>${entry.what_stuck}</p>` : ''}
+                        ${entry.reflection_good ? `<h4>✅ Bra</h4><p>${entry.reflection_good}</p>` : ''}
+                        ${entry.reflection_improve ? `<h4>🎯 Förbättra</h4><p>${entry.reflection_improve}</p>` : ''}
+                    </div>
+                    <button class="delete-btn" onclick="deleteEntry('${entry.id}')">Radera</button>
+                </div>
+            `).join('');
+        }
+
+        async function deleteEntry(id) {
+            if (!confirm('Är du säker på att du vill radera detta pass?')) return;
+            
+            const { error } = await supabase
+                .from('training_sessions')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('Fel vid radering: ' + error.message);
+            } else {
+                loadEntries();
+            }
+        }
+
+        // Weight Tracking
+        async function loadWeightTracking() {
+            const { data: entries, error } = await supabase
+                .from('training_sessions')
+                .select('date, weight_kg')
+                .eq('user_id', currentUser.id)
+                .not('weight_kg', 'is', null)
+                .order('date', { ascending: true });
+
+            if (error || entries.length === 0) {
+                document.getElementById('weightStats').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ingen viktdata ännu</h3>
+                        <p>Börja logga din vikt i varje pass för att se utveckling.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Chart
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            
+            if (weightChart) {
+                weightChart.destroy();
+            }
+
+            weightChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: entries.map(e => formatDateShort(e.date)),
+                    datasets: [{
+                        label: 'Vikt (kg)',
+                        data: entries.map(e => e.weight_kg),
+                        borderColor: '#c44536',
+                        backgroundColor: 'rgba(196, 69, 54, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Tävlingsgräns (82.3 kg)',
+                        data: Array(entries.length).fill(82.3),
+                        borderColor: '#8b8680',
+                        borderDash: [5, 5],
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 75,
+                            max: 85
+                        }
+                    }
+                }
+            });
+
+            // Stats
+            const weights = entries.map(e => parseFloat(e.weight_kg));
+            const current = weights[weights.length - 1];
+            const avg = weights.reduce((a, b) => a + b) / weights.length;
+            const trend = weights.length > 1 ? weights[weights.length - 1] - weights[0] : 0;
+
+            document.getElementById('weightStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${current.toFixed(1)}</div>
+                    <div class="stat-label">Senaste vikt (kg)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${avg.toFixed(1)}</div>
+                    <div class="stat-label">Genomsnitt (kg)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${trend > 0 ? '+' : ''}${trend.toFixed(1)}</div>
+                    <div class="stat-label">Förändring (kg)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${(82.3 - current).toFixed(1)}</div>
+                    <div class="stat-label">Till gräns (kg)</div>
+                </div>
+            `;
+        }
+
+        // Analysis
+        async function loadAnalysis() {
+            const { data: entries, error } = await supabase
+                .from('training_sessions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+
+            if (error || entries.length === 0) {
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ingen data att analysera ännu</h3>
+                        <p>Logga minst 3-5 pass för att se mönster och trender.</p>
+                    </div>
+                `;
+                document.getElementById('patternsContainer').innerHTML = '';
+                return;
+            }
+
+            // Basic stats
+            const totalSessions = entries.length;
+            const last30Days = entries.filter(e => {
+                const entryDate = new Date(e.date);
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                return entryDate >= thirtyDaysAgo;
+            }).length;
+
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${totalSessions}</div>
+                    <div class="stat-label">Totalt pass</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${last30Days}</div>
+                    <div class="stat-label">Senaste 30 dagarna</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Math.round(last30Days / 4.3)}</div>
+                    <div class="stat-label">Pass/vecka (snitt)</div>
+                </div>
+            `;
+
+            // Pattern analysis
+            const positions = extractPatterns(entries, 'positions');
+            const worked = extractPatterns(entries, 'what_worked');
+            const stuck = extractPatterns(entries, 'what_stuck');
+
+            document.getElementById('patternsContainer').innerHTML = `
+                ${createPatternList('Vanligaste Positioner', positions)}
+                ${createPatternList('Vad som Fungerar', worked)}
+                ${createPatternList('Vad som Fastnar', stuck)}
+            `;
+        }
+
+        function extractPatterns(entries, field) {
+            const words = {};
+            entries.forEach(entry => {
+                if (!entry[field]) return;
+                const text = entry[field].toLowerCase();
+                const matches = text.match(/\b\w{4,}\b/g) || [];
+                matches.forEach(word => {
+                    if (!words[word]) words[word] = 0;
+                    words[word]++;
+                });
+            });
+
+            return Object.entries(words)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+        }
+
+        function createPatternList(title, patterns) {
+            if (patterns.length === 0) return '';
+            
+            return `
+                <div class="pattern-list">
+                    <h3>${title}</h3>
+                    ${patterns.map(([name, count]) => `
+                        <div class="pattern-item">
+                            <span class="pattern-name">${name}</span>
+                            <span class="pattern-count">${count}x</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // A-Game
+        async function loadAGame() {
+            const { data: entries, error } = await supabase
+                .from('training_sessions')
+                .select('*')
+                .eq('user_id', currentUser.id);
+
+            if (error || entries.length < 5) {
+                document.getElementById('agameContent').innerHTML = `
+                    <div class="empty-state">
+                        <h3>För tidigt för A-spel</h3>
+                        <p>Logga minst 5-8 pass först så vi kan identifiera vad som faktiskt fungerar för dig.</p>
+                        <p style="margin-top: 1rem; color: var(--ink);">Du har ${entries?.length || 0} pass loggade. Fortsätt träna!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const worked = extractPatterns(entries, 'what_worked');
+            const positions = extractPatterns(entries, 'positions');
+            
+            const topWorked = worked.slice(0, 5);
+            const topPositions = positions.slice(0, 5);
+
+            document.getElementById('agameContent').innerHTML = `
+                <div class="agame-section">
+                    <h3>Ditt framväxande A-spel</h3>
+                    <p style="margin-bottom: 2rem; color: var(--subtle);">
+                        Baserat på ${entries.length} loggade pass. Detta är vad som faktiskt fungerar för dig:
+                    </p>
+
+                    <div class="agame-position">
+                        <h4>Positioner du återkommer till</h4>
+                        <ul>
+                            ${topPositions.map(([pos]) => `<li>${pos}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="agame-position">
+                        <h4>Tekniker som fungerar</h4>
+                        <ul>
+                            ${topWorked.map(([tech]) => `<li>${tech}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="agame-position">
+                        <h4>Nästa steg</h4>
+                        <ul>
+                            <li>Identifiera sekvenser mellan dina fungerande positioner</li>
+                            <li>Bygg kedjor: position → övergång → submission/sweep</li>
+                            <li>Dela din analys med din coach för skräddarsydd feedback</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; padding: 1.5rem; background: var(--paper); border-left: 3px solid var(--accent);">
+                    <p style="font-style: italic; color: var(--subtle);">
+                        "A-spel bygger du inte på YouTube – du bygger det på mattan, genom att notera vad som faktiskt fungerar för DIN kropp och DIN timing."
+                    </p>
+                </div>
+            `;
+        }
+
+        // Migration & Export
+        async function importOldData() {
+            const data = document.getElementById('importData').value;
+            if (!data) {
+                alert('Klistra in data först!');
+                return;
+            }
+
+            try {
+                const oldEntries = JSON.parse(data);
+                const converted = oldEntries.map(entry => ({
+                    user_id: currentUser.id,
+                    date: entry.date,
+                    session_type: null, // Old v1 had session type, v2 uses coach (optional)
+                    technique: entry.technique,
+                    rolls_count: entry.rolls,
+                    positions: entry.positions,
+                    what_worked: entry.worked,
+                    what_stuck: entry.stuck,
+                    reflection_good: entry.good,
+                    reflection_improve: entry.improve
+                }));
+
+                const { error } = await supabase
+                    .from('training_sessions')
+                    .insert(converted);
+
+                if (error) throw error;
+
+                const msgDiv = document.getElementById('importMessage');
+                msgDiv.textContent = `✅ ${converted.length} pass importerade!`;
+                msgDiv.classList.remove('hidden');
+                document.getElementById('importData').value = '';
+
+                setTimeout(() => msgDiv.classList.add('hidden'), 5000);
+            } catch (e) {
+                alert('Fel vid import: ' + e.message);
+            }
+        }
+
+        async function exportData() {
+            const { data: entries, error } = await supabase
+                .from('training_sessions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+
+            if (error) {
+                alert('Fel vid export: ' + error.message);
+                return;
+            }
+
+            const dataStr = JSON.stringify(entries, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rolling-journal-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Utilities
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('sv-SE', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+
+        function formatDateShort(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('sv-SE', { 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>

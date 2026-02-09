@@ -2,7 +2,7 @@
   "name": "Rolling Journal v2.0",
   "short_name": "Rolling Journal",
   "description": "Din BJJ-utveckling i molnet - med vikttracking och synkronisering",
-  "start_url": "/",
+  "start_url": "start_url": "/rolling-journal/",
   "display": "standalone",
   "background_color": "#faf8f5",
   "theme_color": "#c44536",

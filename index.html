@@ -1624,11 +1624,14 @@
         // Weight Tracking
         function loadWeightTracking() {
             const entries = JSON.parse(localStorage.getItem('bjjEntries') || '[]')
-                .filter(e => e.weight)
+                .filter(e => e.weight && e.weight.toString().trim() !== '')
                 .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+            const container = document.getElementById('weightStats');
+            if (!container) return;
+
             if (entries.length === 0) {
-                document.getElementById('weightStats').innerHTML = `
+                container.innerHTML = `
                     <div class="empty-state">
                         <h3>Ingen viktdata ännu</h3>
                         <p>Börja logga din vikt i varje pass för att se utveckling.</p>
@@ -1638,11 +1641,12 @@
             }
 
             // Chart
-            const ctx = document.getElementById('weightChart').getContext('2d');
+            const ctx = document.getElementById('weightChart');
+            if (!ctx) return;
             
             if (weightChart) weightChart.destroy();
 
-            weightChart = new Chart(ctx, {
+            weightChart = new Chart(ctx.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: entries.map(e => formatDateShort(e.date)),
@@ -1680,7 +1684,7 @@
             const avg = weights.reduce((a, b) => a + b) / weights.length;
             const trend = weights.length > 1 ? weights[weights.length - 1] - weights[0] : 0;
 
-            document.getElementById('weightStats').innerHTML = `
+            container.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-number">${current.toFixed(1)}</div>
                     <div class="stat-label">Senaste vikt (kg)</div>

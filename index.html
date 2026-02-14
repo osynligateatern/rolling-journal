@@ -601,6 +601,7 @@
                 <button class="nav-btn active" onclick="showSection('log')">Ny Logg</button>
                 <button class="nav-btn" onclick="showSection('entries')">Alla Pass</button>
                 <button class="nav-btn" onclick="showSection('weight')">Vikt</button>
+                <button class="nav-btn" onclick="showSection('weekly')">Veckosammanfattning</button>
                 <button class="nav-btn" onclick="showSection('analysis')">Analys</button>
                 <button class="nav-btn" onclick="showSection('agame')">A-Spel</button>
                 <button class="nav-btn" onclick="showSection('export')">Backup</button>
@@ -699,6 +700,11 @@
                 <canvas id="weightChart"></canvas>
             </div>
             <div id="weightStats" class="stats-grid"></div>
+        </section>
+
+        <!-- WEEKLY SUMMARY SECTION -->
+        <section id="weekly" class="section">
+            <div id="weeklyContent"></div>
         </section>
 
         <!-- ANALYSIS SECTION -->
@@ -960,6 +966,7 @@
 
             if (sectionId === 'entries') loadEntries();
             if (sectionId === 'weight') loadWeightTracking();
+            if (sectionId === 'weekly') loadWeeklySummary();
             if (sectionId === 'analysis') loadAnalysis();
             if (sectionId === 'agame') loadAGame();
         }
@@ -1011,6 +1018,170 @@
             entries = entries.filter(e => e.id !== id);
             localStorage.setItem('bjjEntries', JSON.stringify(entries));
             loadEntries();
+        }
+
+        // Weekly Summary
+        function loadWeeklySummary() {
+            const entries = JSON.parse(localStorage.getItem('bjjEntries') || '[]');
+            
+            if (entries.length === 0) {
+                document.getElementById('weeklyContent').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ingen data ännu</h3>
+                        <p>Börja logga pass för att se veckosammanfattningar.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (entries.length < 3) {
+                document.getElementById('weeklyContent').innerHTML = `
+                    <div class="empty-state">
+                        <h3>För lite data ännu</h3>
+                        <p>Du har ${entries.length} pass loggat. Logga minst 3 pass för att få meningsfulla veckosammanfattningar.</p>
+                        <p style="margin-top: 1rem; color: var(--accent);">Fortsätt träna och logga - varje pass ger bättre insikter! 💪</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group entries by week
+            const weeks = {};
+            entries.forEach(entry => {
+                const date = new Date(entry.date);
+                const weekStart = new Date(date);
+                weekStart.setDate(date.getDate() - date.getDay() + 1); // Monday
+                weekStart.setHours(0, 0, 0, 0);
+                const weekKey = weekStart.toISOString().split('T')[0];
+                
+                if (!weeks[weekKey]) {
+                    weeks[weekKey] = [];
+                }
+                weeks[weekKey].push(entry);
+            });
+
+            // Sort weeks (newest first)
+            const sortedWeeks = Object.entries(weeks).sort((a, b) => 
+                new Date(b[0]) - new Date(a[0])
+            );
+
+            let html = '';
+
+            sortedWeeks.slice(0, 8).forEach(([weekStart, weekEntries]) => {
+                const startDate = new Date(weekStart);
+                const endDate = new Date(weekStart);
+                endDate.setDate(startDate.getDate() + 6);
+                
+                // Calculate stats for the week
+                const sessionsCount = weekEntries.length;
+                const weights = weekEntries.filter(e => e.weight).map(e => parseFloat(e.weight));
+                const avgWeight = weights.length > 0 
+                    ? (weights.reduce((a, b) => a + b) / weights.length).toFixed(1)
+                    : null;
+                
+                // Extract patterns for the week
+                const positions = extractPatterns(weekEntries, 'positions').slice(0, 3);
+                const worked = extractPatterns(weekEntries, 'worked').slice(0, 3);
+                const stuck = extractPatterns(weekEntries, 'stuck').slice(0, 3);
+                
+                // Coach frequency
+                const coaches = {};
+                weekEntries.forEach(e => {
+                    if (e.coach) {
+                        coaches[e.coach] = (coaches[e.coach] || 0) + 1;
+                    }
+                });
+                const topCoach = Object.entries(coaches).sort((a, b) => b[1] - a[1])[0];
+
+                html += `
+                    <div class="pattern-list" style="margin-bottom: 2rem;">
+                        <h3>Vecka ${formatDateRange(startDate, endDate)}</h3>
+                        
+                        <div class="stats-grid" style="margin: 1.5rem 0;">
+                            <div class="stat-card">
+                                <div class="stat-number">${sessionsCount}</div>
+                                <div class="stat-label">Pass</div>
+                            </div>
+                            ${avgWeight ? `
+                                <div class="stat-card">
+                                    <div class="stat-number">${avgWeight}</div>
+                                    <div class="stat-label">Snitt vikt (kg)</div>
+                                </div>
+                            ` : ''}
+                            ${topCoach ? `
+                                <div class="stat-card">
+                                    <div class="stat-number" style="font-size: 1.5rem;">${topCoach[0]}</div>
+                                    <div class="stat-label">Främsta coach</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        ${positions.length > 0 ? `
+                            <div style="margin: 1rem 0;">
+                                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--subtle);">Mest förekommande positioner:</h4>
+                                <p style="color: var(--ink);">${positions.map(([p, c]) => `${p} (${c}x)`).join(', ')}</p>
+                            </div>
+                        ` : ''}
+
+                        ${worked.length > 0 ? `
+                            <div style="margin: 1rem 0;">
+                                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--success);">✅ Vad som fungerade:</h4>
+                                <p style="color: var(--ink);">${worked.map(([p, c]) => `${p} (${c}x)`).join(', ')}</p>
+                            </div>
+                        ` : ''}
+
+                        ${stuck.length > 0 ? `
+                            <div style="margin: 1rem 0;">
+                                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--warning);">⚠️ Vad som inte fungerade:</h4>
+                                <p style="color: var(--ink);">${stuck.map(([p, c]) => `${p} (${c}x)`).join(', ')}</p>
+                            </div>
+                        ` : ''}
+
+                        ${generateWeeklyInsight(weekEntries, sessionsCount, positions, worked, stuck)}
+                    </div>
+                `;
+            });
+
+            document.getElementById('weeklyContent').innerHTML = html;
+        }
+
+        function generateWeeklyInsight(entries, count, positions, worked, stuck) {
+            let insight = '';
+            
+            if (count >= 5) {
+                insight = '🔥 Exceptionell vecka! Du kör hårt och bygger extremt god momentum.';
+            } else if (count >= 4) {
+                insight = '💪 Stark vecka! Du är konsistent och din utveckling accelererar.';
+            } else if (count >= 3) {
+                insight = '✅ Solid vecka! Tre pass är en utmärkt bas för progression.';
+            } else if (count === 2) {
+                insight = '👍 Bra start! Två pass håller dig aktiv. Sikta på ett till nästa vecka.';
+            } else {
+                insight = '⚡ Ett pass är bättre än noll! Sikta på fler nästa vecka.';
+            }
+
+            // Add specific insight if patterns are clear
+            if (worked.length > 0 && stuck.length > 0) {
+                const topWorked = worked[0][0];
+                const topStuck = stuck[0][0];
+                insight += ` Fokusera på att utveckla "${topWorked}" vidare, och jobba extra på "${topStuck}".`;
+            } else if (worked.length > 0) {
+                insight += ` Din "${worked[0][0]}" utvecklas bra - fortsätt där!`;
+            }
+
+            return `
+                <div style="margin-top: 1.5rem; padding: 1rem; background: var(--paper); border-left: 3px solid var(--accent);">
+                    <p style="font-style: italic; color: var(--subtle); margin: 0;">
+                        ${insight}
+                    </p>
+                </div>
+            `;
+        }
+
+        function formatDateRange(start, end) {
+            const startStr = start.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+            const endStr = end.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+            return `${startStr} - ${endStr}`;
         }
 
         // Weight Tracking
@@ -1107,6 +1278,7 @@
                 return;
             }
 
+            // Calculate consistency metrics
             const totalSessions = entries.length;
             const last30Days = entries.filter(e => {
                 const entryDate = new Date(e.date);
@@ -1114,6 +1286,44 @@
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                 return entryDate >= thirtyDaysAgo;
             }).length;
+
+            // Calculate current streak (week-based)
+            const weeks = {};
+            entries.forEach(entry => {
+                const date = new Date(entry.date);
+                const weekStart = new Date(date);
+                weekStart.setDate(date.getDate() - date.getDay() + 1); // Monday
+                weekStart.setHours(0, 0, 0, 0);
+                const weekKey = weekStart.toISOString().split('T')[0];
+                weeks[weekKey] = (weeks[weekKey] || 0) + 1;
+            });
+
+            const sortedWeekKeys = Object.keys(weeks).sort((a, b) => new Date(b) - new Date(a));
+            let weekStreak = 0;
+            let lastWeek = null;
+            
+            for (const weekKey of sortedWeekKeys) {
+                const weekDate = new Date(weekKey);
+                if (!lastWeek) {
+                    lastWeek = weekDate;
+                    weekStreak = 1;
+                } else {
+                    const weeksDiff = Math.floor((lastWeek - weekDate) / (1000 * 60 * 60 * 24 * 7));
+                    if (weeksDiff === 1) { // Consecutive week
+                        weekStreak++;
+                        lastWeek = weekDate;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            const totalPassesInStreak = sortedWeekKeys.slice(0, weekStreak)
+                .reduce((sum, weekKey) => sum + weeks[weekKey], 0);
+
+            const sortedWeeks = Object.entries(weeks).sort((a, b) => 
+                new Date(a[0]) - new Date(b[0])
+            ).slice(-12); // Last 12 weeks
 
             document.getElementById('statsGrid').innerHTML = `
                 <div class="stat-card">
@@ -1128,32 +1338,151 @@
                     <div class="stat-number">${Math.round(last30Days / 4.3)}</div>
                     <div class="stat-label">Pass/vecka (snitt)</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-number">${weekStreak} ${weekStreak === 1 ? 'vecka' : 'veckor'}</div>
+                    <div class="stat-label">Streak (${totalPassesInStreak} pass)</div>
+                </div>
             `;
+
+            // Consistency chart
+            const consistencyHTML = sortedWeeks.length > 1 ? `
+                <div class="chart-container" style="margin-bottom: 2rem;">
+                    <h3>Konsistens (senaste 12 veckorna)</h3>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; font-family: 'DM Mono', monospace; font-size: 0.75rem;">
+                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 20px; height: 20px; background: #2d7a3e; display: inline-block;"></span>
+                            5+ pass
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 20px; height: 20px; background: #c44536; display: inline-block;"></span>
+                            3-4 pass
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 20px; height: 20px; background: #d97706; display: inline-block;"></span>
+                            2 pass
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 20px; height: 20px; background: #8b8680; display: inline-block;"></span>
+                            1 pass
+                        </span>
+                    </div>
+                    <canvas id="consistencyChart"></canvas>
+                </div>
+            ` : '';
 
             const positions = extractPatterns(entries, 'positions');
             const worked = extractPatterns(entries, 'worked');
             const stuck = extractPatterns(entries, 'stuck');
 
             document.getElementById('patternsContainer').innerHTML = `
+                ${consistencyHTML}
                 ${createPatternList('Vanligaste Positioner', positions)}
                 ${createPatternList('Vad som Fungerar', worked)}
                 ${createPatternList('Vad som Inte Fungerar', stuck)}
             `;
+
+            // Draw consistency chart
+            if (sortedWeeks.length > 1) {
+                setTimeout(() => {
+                    const ctx = document.getElementById('consistencyChart');
+                    if (ctx) {
+                        new Chart(ctx.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: sortedWeeks.map(([date]) => {
+                                    const d = new Date(date);
+                                    return d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+                                }),
+                                datasets: [{
+                                    label: 'Pass per vecka',
+                                    data: sortedWeeks.map(([, count]) => count),
+                                    backgroundColor: sortedWeeks.map(([, count]) => {
+                                        if (count >= 5) return '#2d7a3e';
+                                        if (count >= 3) return '#c44536';
+                                        if (count >= 2) return '#d97706';
+                                        return '#8b8680';
+                                    }),
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                plugins: {
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: { stepSize: 1 }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }, 100);
+            }
         }
 
         function extractPatterns(entries, field) {
-            const words = {};
+            const phrases = {};
+            
+            // Common BJJ phrases to look for
+            const bjjPhrases = [
+                'closed guard', 'open guard', 'half guard', 'butterfly guard', 'spider guard',
+                'mount escape', 'side control', 'back control', 'knee on belly',
+                'guard retention', 'guard passing', 'guard recovery',
+                'armbar', 'triangle', 'kimura', 'americana', 'guillotine', 'rear naked choke',
+                'sweep', 'submission', 'takedown', 'scramble',
+                'top position', 'bottom position',
+                'hip escape', 'bridge', 'shrimp', 'technical standup',
+                'grips', 'posture', 'pressure', 'base', 'frame'
+            ];
+            
             entries.forEach(entry => {
                 if (!entry[field]) return;
                 const text = entry[field].toLowerCase();
-                const matches = text.match(/\b\w{4,}\b/g) || [];
-                matches.forEach(word => {
-                    if (!words[word]) words[word] = 0;
-                    words[word]++;
+                
+                // First, look for known BJJ phrases
+                bjjPhrases.forEach(phrase => {
+                    if (text.includes(phrase)) {
+                        if (!phrases[phrase]) phrases[phrase] = 0;
+                        phrases[phrase]++;
+                    }
                 });
+                
+                // Then extract 2-3 word phrases that appear multiple times
+                const words = text.split(/\s+/);
+                for (let i = 0; i < words.length - 1; i++) {
+                    // Clean words
+                    const w1 = words[i].replace(/[^\w]/g, '');
+                    const w2 = words[i + 1].replace(/[^\w]/g, '');
+                    
+                    if (w1.length >= 3 && w2.length >= 3) {
+                        const twoWord = `${w1} ${w2}`;
+                        // Skip if it's already a known phrase
+                        if (!bjjPhrases.includes(twoWord)) {
+                            if (!phrases[twoWord]) phrases[twoWord] = 0;
+                            phrases[twoWord]++;
+                        }
+                    }
+                    
+                    // 3-word phrases
+                    if (i < words.length - 2) {
+                        const w3 = words[i + 2].replace(/[^\w]/g, '');
+                        if (w1.length >= 3 && w2.length >= 3 && w3.length >= 3) {
+                            const threeWord = `${w1} ${w2} ${w3}`;
+                            if (!bjjPhrases.includes(threeWord)) {
+                                if (!phrases[threeWord]) phrases[threeWord] = 0;
+                                phrases[threeWord]++;
+                            }
+                        }
+                    }
+                }
             });
 
-            return Object.entries(words)
+            // Filter out phrases that only appear once and sort
+            return Object.entries(phrases)
+                .filter(([phrase, count]) => count >= 2) // Must appear at least twice
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 10);
         }

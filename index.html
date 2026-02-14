@@ -600,6 +600,7 @@
             <div class="nav">
                 <button class="nav-btn active" onclick="showSection('log')">Ny Logg</button>
                 <button class="nav-btn" onclick="showSection('entries')">Alla Pass</button>
+                <button class="nav-btn" onclick="showSection('teknikbank')">Teknikbank</button>
                 <button class="nav-btn" onclick="showSection('weight')">Vikt</button>
                 <button class="nav-btn" onclick="showSection('weekly')">Veckosammanfattning</button>
                 <button class="nav-btn" onclick="showSection('analysis')">Analys</button>
@@ -693,6 +694,71 @@
             <div id="entriesList"></div>
         </section>
 
+        <!-- TEKNIKBANK SECTION -->
+        <section id="teknikbank" class="section">
+            <div class="pattern-list" style="margin-bottom: 2rem;">
+                <h3>Lägg till nytt tips</h3>
+                <form id="tipForm" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label for="tipTitle">Teknik/Position</label>
+                        <input type="text" id="tipTitle" placeholder="t.ex. Mount Escape, Triangle från Guard..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tipContent">Tips/Lärdomar</label>
+                        <textarea id="tipContent" rows="4" placeholder="Beskriv tekniken, vad coach sa, viktig detalj..." required></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="tipCategory">Kategori</label>
+                            <select id="tipCategory">
+                                <option value="guard">Guard</option>
+                                <option value="passing">Guard Passing</option>
+                                <option value="mount">Mount</option>
+                                <option value="side-control">Side Control</option>
+                                <option value="back">Back Control</option>
+                                <option value="escape">Escapes</option>
+                                <option value="submission">Submissions</option>
+                                <option value="sweep">Sweeps</option>
+                                <option value="takedown">Takedowns</option>
+                                <option value="general">Allmänt</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipFavorite">
+                                <input type="checkbox" id="tipFavorite" style="width: auto; margin-right: 0.5rem;">
+                                Favorit ⭐
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Spara Tips</button>
+                </form>
+            </div>
+
+            <div class="pattern-list">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Mina Tips & Tekniker</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="tipSearch" placeholder="Sök..." style="width: 200px; padding: 0.5rem;">
+                        <select id="tipFilter" style="width: 150px; padding: 0.5rem;">
+                            <option value="all">Alla</option>
+                            <option value="favorites">⭐ Favoriter</option>
+                            <option value="guard">Guard</option>
+                            <option value="passing">Passing</option>
+                            <option value="mount">Mount</option>
+                            <option value="side-control">Side Control</option>
+                            <option value="back">Back</option>
+                            <option value="escape">Escapes</option>
+                            <option value="submission">Submissions</option>
+                            <option value="sweep">Sweeps</option>
+                            <option value="takedown">Takedowns</option>
+                            <option value="general">Allmänt</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tipsList"></div>
+            </div>
+        </section>
+
         <!-- WEIGHT TRACKING SECTION -->
         <section id="weight" class="section">
             <div class="chart-container">
@@ -755,6 +821,7 @@
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('weight').addEventListener('input', updateWeightStatus);
             updateMotivationDashboard();
+            initTeknikbank();
         });
 
         // Voice Recognition
@@ -814,6 +881,176 @@
                 if (btn) btn.classList.remove('recording');
                 currentRecording = null;
             }
+        }
+
+        // Teknikbank Functions
+        function initTeknikbank() {
+            // Pre-populate with existing tips if not already done
+            const tips = JSON.parse(localStorage.getItem('bjjTips') || '[]');
+            if (tips.length === 0) {
+                const preTips = [
+                    { id: Date.now() + 1, title: "Back Take - Hooks innan attack", content: "Vänta tills motståndaren höften droppar till mattan INNAN du börjar sätta hooks. Då får du mycket bättre kontroll.", category: "back", favorite: true, date: "2024-09-01" },
+                    { id: Date.now() + 2, title: "Half Guard - Spine på mattan", content: "Försök inte etablera pass såvida inte motståndaren ryggrad är på mattan. Detta förhindrar att du fastnar i half guard.", category: "passing", favorite: true, date: "2024-09-01" },
+                    { id: Date.now() + 3, title: "Mount - Bottenperson mål", content: "Bottenperson vinner om de får höften framför toppersonen och etablerar 2 connections på höft/knä (3 sek eller mer).", category: "mount", favorite: false, date: "2024-09-01" },
+                    { id: Date.now() + 4, title: "Strypning från Back - Vilken arm kontrollerar?", content: "Tänk på vilken arm som stryper och vilken som kontrollerar axeln. Ta armen upp sen till vänster och skapa utrymme, snurra runt så du hamnar magen mot.", category: "escape", favorite: true, date: "2024-09-15" },
+                    { id: Date.now() + 5, title: "Guard - Lyft höften, hälar nedåt", content: "Viktigt att du lyfter på rumpan och att hälarna pekas ner när du jobbar från guard.", category: "guard", favorite: false, date: "2024-09-15" },
+                    { id: Date.now() + 6, title: "Greppbrytning - Korsa och tryck", content: "Bryt grepp: korsa din hand, tryck upp, dra den sen över hans mitt. Håll tryck. Välj sen ta rygg eller stryp med benen.", category: "guard", favorite: true, date: "2024-09-15" },
+                    { id: Date.now() + 7, title: "Mount Escape - Händer på höft", content: "Om du är under: lägg båda händerna på höften och tryck dig ut. Rocka ut ett ben och re-guard.", category: "escape", favorite: true, date: "2024-09-15" },
+                    { id: Date.now() + 8, title: "North South - Rörelse är nyckeln", content: "North south svårt att plocka benen ifrån. Gå fram och tillbaka, även gå över magen till andra sidan.", category: "side-control", favorite: false, date: "2024-09-15" },
+                    { id: Date.now() + 9, title: "Mental approach - Var inte girig", content: "Var inte girig, ta det lugnt och invänta rätt tillfälle. Jag försökte mounta för tidigt.", category: "general", favorite: true, date: "2024-09-15" },
+                    { id: Date.now() + 10, title: "Side Control - Handposition", content: "När du ligger i side: istället för att koppla ihop händerna, ta handen under huvudet och håll i sidan av halsen. Andra handen fångar andra armen samt knät stoppar höften (som en halv knee on belly).", category: "side-control", favorite: true, date: "2024-09-15" },
+                    { id: Date.now() + 11, title: "Side Control - Var tung mitt på", content: "Tänk på att vara tung mitt på, tänk som en pelare som går igenom dig. Ta inte stöd med händerna då fördelar du vikten fel.", category: "side-control", favorite: false, date: "2024-09-15" },
+                    { id: Date.now() + 12, title: "Dummy Sweep från Guard", content: "Om någon står i min guard: greppa baksidan av fötterna och fäll bakåt.", category: "sweep", favorite: false, date: "2024-09-20" },
+                    { id: Date.now() + 13, title: "Back Control - Grepp i jackan", content: "Om du hamnar på rygg på den andra: greppa EJ runt halsen, ta tag i jackan bak. Vänta på öppning med fötterna, kroka i och ta då grepp under armen och halsen och fall åt hållet foten har krok.", category: "back", favorite: true, date: "2024-09-20" },
+                    { id: Date.now() + 14, title: "Americana från Side - Dra mot höft", content: "Hamnade i side och fick tag i armen, gjorde americana. Se till att dra den nedåt mot höften.", category: "submission", favorite: false, date: "2024-09-20" },
+                    { id: Date.now() + 15, title: "Mental - Andas lugnt på topp", content: "När du ligger på: den andra har jobbigt. Andas lugnt, återhämta dig en stund. Den andra blir stressad om du andas lugnt. Flåsa inte här - det är nu du ska återhämta dig.", category: "general", favorite: true, date: "2024-09-20" },
+                    { id: Date.now() + 16, title: "Guard Retention - Gör något efter!", content: "Vi övade guard retention. Viktigt: eftersom du jobbar så hårt här, när du väl lyckas så GÖR NÅGOT DÅ. Annars blir du slut. Du har nu fått något för mödan - låt inte den andra smita iväg igen.", category: "guard", favorite: true, date: "2024-09-20" },
+                    { id: Date.now() + 17, title: "Push-Pull Princip", content: "Push Pull - teknik som funkar i alla lägen. Om jag drar lite och han gör motstånd: följ åt hans håll. Även i guardpassing: dra knäna åt vänster, han gör motstånd, dra dem åt hans håll.", category: "general", favorite: true, date: "2024-09-25" },
+                    { id: Date.now() + 18, title: "Guard Passing - Tryck upp fötterna", content: "Hur man kommer förbi guard: Tryck upp fötterna, ta tag under vaderna och tryck de längst bak. Eller gå rund nord vid huvudet och lägg dig på honom.", category: "passing", favorite: false, date: "2024-09-25" },
+                    { id: Date.now() + 19, title: "Mental - Gå på instinkt", content: "Ett misstag många gör är att man tänker för mycket på vad man ska göra och då missar man ögonblicket. Istället: gå på instinkt. Efter ett tag kommer hjärnan komma på övningarna du gjort.", category: "general", favorite: true, date: "2024-09-25" },
+                    { id: Date.now() + 20, title: "Attack - Överraskning är bäst", content: "Överraskning är den bästa attacken i jiu jitsu. Slappna av innan du gör attacken, då går du från 0 till hundra. Istället för att försöka kontrollera med 60% sen upp till 100% - blir inte lika mycket överraskning.", category: "general", favorite: true, date: "2024-09-25" },
+                    { id: Date.now() + 21, title: "Guard - Håll avstånd för leverage", content: "Om du har guard: försök håll avstånd. Ju längre avstånd ju mer kraft för dig. Mer leverage. Dra i kragen eller ärmen. Skapa utrymme.", category: "guard", favorite: false, date: "2024-09-25" },
+                    { id: Date.now() + 22, title: "I Guard - Skydda kragen", content: "Om jag är i guard: håll mina händer så att han inte kan ta tag i övre delen av min krage. Skydda den delen. Målet är att trycka upp mina ben så han ramlar fram. OM han får tag i kragen: ta tag i hans krage över hans arm - då får du övertag.", category: "passing", favorite: false, date: "2024-09-25" },
+                    { id: Date.now() + 23, title: "John Danaher - Möt yngre/starkare", content: "Hur möta en som är yngre och starkare: Låt dem trötta ut sig. Även om de är starkare, låt de jobba fyra gånger hårdare än dig. Håll fast, pin points. Låt de slita ut sig.", category: "general", favorite: true, date: "2024-09-30" },
+                    { id: Date.now() + 24, title: "North South Strangle - Armbågsposition", content: "North south strangle: När du väl kommit från sidemount upp till north south - se till att vara utanför motståndarens armbåge.", category: "submission", favorite: false, date: "2024-09-30" },
+                    { id: Date.now() + 25, title: "Danaher - Position Before Submission", content: "Position before submission. Spend 80% of your time improving position, only 20% attacking submissions. Beginners do the opposite - they hunt submissions from bad positions and get reversed. Secure dominant position first, then the submissions become easy and low-risk.", category: "general", favorite: true, date: "2024-10-01" },
+                    { id: Date.now() + 26, title: "Danaher - Breaking Mechanics vs Strength", content: "Never try to overcome strength with strength. Break the mechanical structure instead. If someone has a strong grip, don't pull against it - move your body to create an angle where their grip becomes weak. Mechanics always beats strength.", category: "general", favorite: true, date: "2024-10-01" },
+                    { id: Date.now() + 27, title: "Danaher - The Question Method", content: "Every move in BJJ is an answer to a question. When stuck, ask: What is the OTHER person trying to accomplish? What are they afraid of? Then deny them what they want and give them what they fear. This simple method solves most tactical problems.", category: "general", favorite: true, date: "2024-10-01" },
+                    { id: Date.now() + 28, title: "Danaher - Enter Submissions on the Reaction", content: "Never enter submissions when opponent is static and ready. Wait for them to move or react, then enter during their movement. When they push, pull them. When they pull, push them. Enter all submissions on their reaction, not their preparation.", category: "submission", favorite: true, date: "2024-10-01" },
+                    { id: Date.now() + 29, title: "Danaher - Control the Inside Space", content: "In top position, control the inside space between you and opponent. Keep your elbows inside theirs. In bottom position, fight to get YOUR elbows inside. Whoever controls inside space controls the position. This is the fundamental battle in all pin escapes.", category: "general", favorite: true, date: "2024-10-01" },
+                    { id: Date.now() + 30, title: "Marcelo Garcia - Arm Drag är allt", content: "Arm drag is my favorite technique because it works from everywhere: standing, sitting guard, butterfly, half guard. It's one technique that solves many problems. Master the arm drag and you have a universal tool that creates back takes and sweeps from any position.", category: "general", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 31, title: "Marcelo - Guillotine från Guard", content: "For guillotine from guard: Don't just grab the neck. First, use your legs to off-balance them forward. When they post their hands, THEN grab the guillotine. The setup is more important than the finish. If they're balanced, the choke won't work.", category: "submission", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 32, title: "Marcelo - Butterfly Guard Philosophy", content: "Butterfly guard is about constant motion and angles. Never stay static. If they pressure forward, come up on the underhook. If they sit back, scoot forward and elevate. If they go sideways, follow with the hook. Think like water - always flowing, never stuck.", category: "guard", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 33, title: "Marcelo - The Float Pass Concept", content: "When passing, don't commit your weight until you've secured the position. Float your weight, staying mobile, until you see the opening. Then drop your weight all at once. Too many people commit their weight early and get swept. Stay light, stay mobile.", category: "passing", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 34, title: "Marcelo - Training with Purpose", content: "Don't just roll to roll. Pick one thing before each round: 'Today I only play butterfly guard' or 'Today I only finish guillotines.' If you lose position, that's okay - you're learning that specific thing. Specific training creates specific skills.", category: "general", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 35, title: "Marcelo - Pressure vs Connection", content: "Big difference between pressure and connection. Pressure is pushing down with weight. Connection is staying attached while staying mobile. In top position, maintain connection, not just pressure. This lets you follow their movements and prevent escapes while staying offensive.", category: "general", favorite: true, date: "2024-10-05" },
+                    { id: Date.now() + 36, title: "Danaher - Frames are Temporary", content: "Frames are not meant to hold forever. They buy you TIME to escape. When you frame, immediately start moving your hips. The frame is just creating the space - your hip movement is what actually escapes. Never frame and stop moving.", category: "escape", favorite: true, date: "2024-10-07" },
+                    { id: Date.now() + 37, title: "Danaher - Two Types of Control", content: "There are only two types of control in BJJ: 1) Pinning them to the mat (side control, mount) or 2) Pinning them to your body (back control, front headlock). Understand which type you have, and what tools work for each type. Don't mix strategies.", category: "general", favorite: true, date: "2024-10-07" },
+                    { id: Date.now() + 38, title: "Marcelo - When to Sit Guard", content: "Only sit to guard if you have grips first. Standing with no grips is better than sitting with no grips. If they won't engage, stay standing and make them come to you. Sitting with no control gives away top position for free.", category: "guard", favorite: true, date: "2024-10-07" }
+                ];
+                localStorage.setItem('bjjTips', JSON.stringify(preTips));
+            }
+
+            // Event listeners
+            document.getElementById('tipForm')?.addEventListener('submit', handleTipSubmit);
+            document.getElementById('tipSearch')?.addEventListener('input', filterTips);
+            document.getElementById('tipFilter')?.addEventListener('change', filterTips);
+        }
+
+        function handleTipSubmit(e) {
+            e.preventDefault();
+            
+            const tip = {
+                id: Date.now(),
+                title: document.getElementById('tipTitle').value,
+                content: document.getElementById('tipContent').value,
+                category: document.getElementById('tipCategory').value,
+                favorite: document.getElementById('tipFavorite').checked,
+                date: new Date().toISOString().split('T')[0]
+            };
+
+            let tips = JSON.parse(localStorage.getItem('bjjTips') || '[]');
+            tips.unshift(tip);
+            localStorage.setItem('bjjTips', JSON.stringify(tips));
+
+            document.getElementById('tipForm').reset();
+            loadTips();
+            
+            const form = document.getElementById('tipForm');
+            const success = document.createElement('div');
+            success.className = 'success-message';
+            success.textContent = 'Tips sparat! 🎯';
+            form.parentNode.insertBefore(success, form);
+            setTimeout(() => success.remove(), 3000);
+        }
+
+        function loadTips() {
+            const tips = JSON.parse(localStorage.getItem('bjjTips') || '[]');
+            const searchTerm = document.getElementById('tipSearch')?.value.toLowerCase() || '';
+            const filter = document.getElementById('tipFilter')?.value || 'all';
+
+            let filtered = tips.filter(tip => {
+                const matchesSearch = tip.title.toLowerCase().includes(searchTerm) || 
+                                    tip.content.toLowerCase().includes(searchTerm);
+                const matchesFilter = filter === 'all' || 
+                                    (filter === 'favorites' && tip.favorite) || 
+                                    tip.category === filter;
+                return matchesSearch && matchesFilter;
+            });
+
+            const container = document.getElementById('tipsList');
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Inga tips hittades</h3>
+                        <p>Prova en annan sökning eller filter.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(tip => `
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <div>
+                            <span style="font-size: 1.2rem; font-weight: 600;">${tip.favorite ? '⭐ ' : ''}${tip.title}</span>
+                        </div>
+                        <div class="entry-meta">
+                            <span class="entry-coach" style="background: var(--paper); padding: 0.3rem 0.6rem;">${getCategoryLabel(tip.category)}</span>
+                            <span class="entry-date" style="font-size: 0.85rem;">${formatDate(tip.date)}</span>
+                        </div>
+                    </div>
+                    <div class="entry-content">
+                        <p>${tip.content}</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button class="delete-btn" onclick="toggleFavorite(${tip.id})" style="flex: 0;">
+                            ${tip.favorite ? 'Ta bort ⭐' : 'Lägg till ⭐'}
+                        </button>
+                        <button class="delete-btn" onclick="deleteTip(${tip.id})">Radera</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterTips() {
+            loadTips();
+        }
+
+        function toggleFavorite(id) {
+            let tips = JSON.parse(localStorage.getItem('bjjTips') || '[]');
+            const tip = tips.find(t => t.id === id);
+            if (tip) {
+                tip.favorite = !tip.favorite;
+                localStorage.setItem('bjjTips', JSON.stringify(tips));
+                loadTips();
+            }
+        }
+
+        function deleteTip(id) {
+            if (!confirm('Är du säker på att du vill radera detta tips?')) return;
+            
+            let tips = JSON.parse(localStorage.getItem('bjjTips') || '[]');
+            tips = tips.filter(t => t.id !== id);
+            localStorage.setItem('bjjTips', JSON.stringify(tips));
+            loadTips();
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                'guard': 'Guard',
+                'passing': 'Passing',
+                'mount': 'Mount',
+                'side-control': 'Side Control',
+                'back': 'Back',
+                'escape': 'Escapes',
+                'submission': 'Submissions',
+                'sweep': 'Sweeps',
+                'takedown': 'Takedowns',
+                'general': 'Allmänt'
+            };
+            return labels[category] || category;
         }
 
         function updateMotivationDashboard() {
@@ -965,6 +1202,7 @@
             event.target.classList.add('active');
 
             if (sectionId === 'entries') loadEntries();
+            if (sectionId === 'teknikbank') loadTips();
             if (sectionId === 'weight') loadWeightTracking();
             if (sectionId === 'weekly') loadWeeklySummary();
             if (sectionId === 'analysis') loadAnalysis();

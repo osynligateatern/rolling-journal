@@ -1255,10 +1255,12 @@
             const entries = JSON.parse(localStorage.getItem('bjjEntries') || '[]');
             const totalSessions = entries.length;
             
-            // Calculate sessions this week
+            // Calculate sessions this week (Monday = start)
             const now = new Date();
             const startOfWeek = new Date(now);
-            startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+            const dayOfWeek = now.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday = go back 6 days
+            startOfWeek.setDate(now.getDate() + daysToMonday);
             startOfWeek.setHours(0, 0, 0, 0);
             
             const thisWeek = entries.filter(e => {
@@ -1487,7 +1489,9 @@
             entries.forEach(entry => {
                 const date = new Date(entry.date);
                 const weekStart = new Date(date);
-                weekStart.setDate(date.getDate() - date.getDay() + 1); // Monday
+                const dayOfWeek = date.getDay();
+                const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                weekStart.setDate(date.getDate() + daysToMonday);
                 weekStart.setHours(0, 0, 0, 0);
                 const weekKey = weekStart.toISOString().split('T')[0];
                 
@@ -1733,7 +1737,9 @@
             entries.forEach(entry => {
                 const date = new Date(entry.date);
                 const weekStart = new Date(date);
-                weekStart.setDate(date.getDate() - date.getDay() + 1); // Monday
+                const dayOfWeek = date.getDay();
+                const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                weekStart.setDate(date.getDate() + daysToMonday);
                 weekStart.setHours(0, 0, 0, 0);
                 const weekKey = weekStart.toISOString().split('T')[0];
                 weeks[weekKey] = (weeks[weekKey] || 0) + 1;
